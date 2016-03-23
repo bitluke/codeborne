@@ -3,37 +3,41 @@ package codeburne.luke;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.List;
 import java.util.logging.Logger;
 import java.util.stream.Collectors;
 
 public class ClassFinder {
+    public static final List<String> EMPTY_LIST = Collections.emptyList();
     private InputStream inputStream;
-    private List<String> qualifiedNames = new LinkedList<String>();
+    private Collection<String> qualifiedNames = new ArrayList<String>();
+    private Collection<String> finalNames = new ArrayList<String>();
     private Logger LOG = Logger.getLogger(ClassFinder.class.getSimpleName());
 
     public ClassFinder(InputStream classNamesStream) {
         if (classNamesStream == null) {
-            throw new IllegalStateException("Class finder not initialised");
+            throw new NullPointerException("Input Stream can't be null");
         }
         inputStream = classNamesStream;
-        initQualifiedNames(inputStream);
-        processClassNames();
+        qualifiedNames = initQualifiedNames();
+        finalNames = processClassNames();
     }
 
     public Collection<String> findMatching(String pattern) {
         List<String> collect = new ArrayList<>();
 
-        if (pattern == null) {
-            return  Collections.emptyList();
-        }
-        if (pattern.isEmpty()) {
-            return  Collections.emptyList();
+        if (pattern == null || pattern.isEmpty()) {
+            return EMPTY_LIST;
         }
 
         StringBuilder newPattern = new StringBuilder();
         if (pattern.contains("*")) {
-            if (pattern.length() == 1 ){return qualifiedNames;}
+            if (pattern.length() == 1) {
+                return qualifiedNames;
+            }
             return processAsterisks(pattern, collect, newPattern);
         }
 
@@ -49,7 +53,7 @@ public class ClassFinder {
 
     private Collection<String> processAsterisks(String pattern, List<String> collect, StringBuilder newPattern) {
         for (int i = 0; i < pattern.length(); i++) {
-            if (pattern.charAt(i) != '*'){
+            if (pattern.charAt(i) != '*') {
                 newPattern.append(pattern.charAt(i));
             }
         }
@@ -101,17 +105,18 @@ public class ClassFinder {
         }
     }
 
-    private void initQualifiedNames(InputStream qualifiedNameStream) {
+    private Collection<String> initQualifiedNames() {
         int intChar;
+        Collection<String> processQualifiedNames = new ArrayList();
         StringBuilder stringBuilder = new StringBuilder();
 
         try {
-            while ((intChar = qualifiedNameStream.read()) != -1) {
+            while ((intChar = inputStream.read()) != -1) {
                 stringBuilder.append((char) intChar);
                 if (intChar == '\n' || intChar == '\r') {
                     String name = stringBuilder.toString();
                     String substring = name.substring(0, name.length());
-                    qualifiedNames.add(substring.trim());
+                    processQualifiedNames.add(substring.trim());
                     stringBuilder.delete(0, stringBuilder.length());
                 }
             }
@@ -123,22 +128,18 @@ public class ClassFinder {
                 LOG.severe("Can't close stream");
             }
         }
+        return processQualifiedNames;
     }
 
-    private void processClassNames() {
-        for (int index = 0; index < qualifiedNames.size(); index++) {
-            String qualifiedName = qualifiedNames.get(index);
-            int indexOfDot = qualifiedName.lastIndexOf(".");
-            if (indexOfDot >= 1) {
-                qualifiedNames.remove(index);
-                qualifiedNames.add(index, qualifiedName.substring(indexOfDot + 1));
-            } else if (indexOfDot < 0 && !qualifiedName.isEmpty()) {
-                qualifiedNames.remove(index);
-                qualifiedNames.add(index, qualifiedName.substring(indexOfDot + 1));
-            }
-        }
+    private Collection<String> processClassNames() {
+        return qualifiedNames.stream()
+                .map(this::getClassName)
+                .collect(Collectors.toList());
+    }
 
-        Collections.sort(qualifiedNames);
+    private String getClassName(String qualifiedName) {
+        int dotIndex = qualifiedName.lastIndexOf(".");
+        return qualifiedName.substring(dotIndex == -1 ? 0 : dotIndex + 1, qualifiedName.length());
     }
 
 

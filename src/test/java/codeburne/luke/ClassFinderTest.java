@@ -56,7 +56,7 @@ public class ClassFinderTest {
 
     private ClassFinder classFinder;
 
-    @Test(expected = IllegalStateException.class)
+    @Test(expected = NullPointerException.class)
     public void classFinderShouldThrowExceptionWhenInputStreamIsNull() {
         classFinder = new ClassFinder(null);
     }
